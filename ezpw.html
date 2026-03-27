@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:"
+  />
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Ctext%20x%3D%2750%27%20y%3D%2758%27%20dominant-baseline%3D%27middle%27%20text-anchor%3D%27middle%27%20font-size%3D%2770%27%20font-family%3D%22system-ui%2CApple%20Color%20Emoji%2CSegoe%20UI%20Emoji%2Csans-serif%22%3E%F0%9F%94%91%3C/text%3E%3C/svg%3E"
+    type="image/svg+xml"
+  />
+  <title>ezpw</title>
+  <style>
+    :root {
+      --bg: #fff;
+      --text: #111;
+      --muted: #555;
+      --border: #ccc;
+      --focus: #06c;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding: 1.25rem;
+    }
+
+    .wrap {
+      max-width: 32rem;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.15rem;
+      font-weight: 500;
+      margin: 0 0 1rem;
+      text-transform: none;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+      text-transform: none;
+    }
+
+    label.check {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    label.check input {
+      margin: 0;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.55rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--focus);
+    }
+
+    .field {
+      margin-bottom: 0.75rem;
+    }
+
+    .hint {
+      margin: 0.35rem 0 0;
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .len-value {
+      font-family: var(--font);
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-width: 1.5rem;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .out-box {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .derived {
+      font-family: var(--font);
+      font-size: 0.9rem;
+      word-break: break-all;
+      margin: 0.35rem 0 0.5rem;
+      min-height: 1.35em;
+      letter-spacing: 0.04em;
+    }
+
+    .derived.empty {
+      color: var(--muted);
+    }
+
+    .derived .pw-fade {
+      opacity: 0.32;
+    }
+
+    .btn-copy {
+      width: 100%;
+    }
+
+    .trace-block {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .trace-block[hidden] {
+      display: none;
+    }
+
+    .trace-block .trace-hdr {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .trace-pre {
+      margin: 0;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: min(55vh, 28rem);
+      overflow: auto;
+      color: var(--text);
+      background: #fafafa;
+    }
+
+    .warn {
+      margin-bottom: 1rem;
+      font-size: 0.8rem;
+      color: #a00;
+    }
+
+    details.spec {
+      margin-top: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    details.spec summary {
+      cursor: pointer;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+
+    details.spec pre {
+      margin: 0;
+      padding: 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ezpw</h1>
+
+    <div id="ctxWarn" class="warn" hidden>web crypto needs a secure context (e.g. http://localhost).</div>
+
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label for="master">master</label>
+        <input id="master" type="text" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="site">site</label>
+        <input id="site" type="text" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="account">account</label>
+        <input id="account" type="text" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label class="check" for="special">
+          <input type="checkbox" id="special" />
+          special characters in mapping
+        </label>
+      </div>
+      <div class="field">
+        <label for="length">length (prefix)</label>
+        <div class="row">
+          <input id="length" type="range" min="4" max="32" value="10" />
+          <span class="len-value" id="lenDisplay">10</span>
+        </div>
+      </div>
+    </form>
+
+    <div class="out-box">
+      <div id="out" class="derived empty">—</div>
+      <button type="button" class="btn-copy" id="btnCopy" disabled>copy</button>
+      <p class="hint" id="clipboardHint">
+        Clipboard can be read by other software on this device; paste where needed and clear it if you use a shared machine.
+      </p>
+      <div id="traceBlock" class="trace-block" hidden>
+        <div class="trace-hdr">derivation trace</div>
+        <pre id="traceOut" class="trace-pre"></pre>
+      </div>
+    </div>
+
+    <details class="spec">
+      <summary>derivation path</summary>
+      <pre id="specBody">Let M = UTF-8(master), site′ = trim(site).toLowerCase(), account′ = trim(account).toLowerCase().
+Let mode be “plain” (checkbox off) or “sym” (checkbox on).
+
+Salt string (UTF-8):  ezpas-v6|site′|account′|mode
+  mode = plain  → no special characters in any pool
+  mode = sym    → SPECIAL and FULL include symbols below
+
+Salt bytes:             SHA-256(salt string)
+PBKDF2:                 HMAC-SHA256, password M, salt bytes, iterations 100000, dkLen 256 bits → B[0..31]
+
+Pools (exact strings):
+  UPPER   = ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  LOWER   = abcdefghijklmnopqrstuvwxyz
+  DIGIT   = 0123456789
+  SPECIAL = !@#$%^&amp;*-_=+
+  FULL_plain = UPPER + LOWER + DIGIT                    (length 62)
+  FULL_sym   = UPPER + LOWER + DIGIT + SPECIAL          (length 76)
+
+Byte cursor bi ← 0.
+next() := v ← B[bi mod 32]; bi ← bi + 1; return v
+
+If mode = plain:
+  1) poolIds ← [0,1,2]. Fisher–Yates shuffle (i = 2 down to 1).
+  2) pools ← [UPPER, LOWER, DIGIT]. For i = 0..2: chars[i] ← pools[poolIds[i]][next() mod |pool|].
+  3) For q = 3..31: chars[q] ← FULL_plain[next() mod 62].
+
+If mode = sym:
+  1) poolIds ← [0,1,2,3]. Fisher–Yates shuffle (i = 3 down to 1).
+  2) pools ← [UPPER, LOWER, DIGIT, SPECIAL]. For i = 0..3: chars[i] ← pools[poolIds[i]][next() mod |pool|].
+  3) For q = 4..31: chars[q] ← FULL_sym[next() mod 76].
+
+Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy.</pre>
+    </details>
+  </div>
+
+  <script>
+    (function () {
+      const ALGO_VERSION = "ezpas-v6";
+      const PBKDF2_ITERATIONS = 100000;
+      const DISPLAY_LEN = 32;
+
+      const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const LOWER = "abcdefghijklmnopqrstuvwxyz";
+      const DIGIT = "0123456789";
+      const SPECIAL = "!@#$%^&*-_=+";
+      const FULL_PLAIN = UPPER + LOWER + DIGIT;
+      const FULL_SYM = UPPER + LOWER + DIGIT + SPECIAL;
+
+      const $ = (id) => document.getElementById(id);
+      const ctxWarn = $("ctxWarn");
+      const form = $("form");
+      const masterEl = $("master");
+      const siteEl = $("site");
+      const accountEl = $("account");
+      const specialEl = $("special");
+      const lengthEl = $("length");
+      const lenDisplay = $("lenDisplay");
+      const outEl = $("out");
+      const btnCopy = $("btnCopy");
+      const traceBlock = $("traceBlock");
+      const traceOut = $("traceOut");
+
+      let lastFull32 = null;
+      let lastTraceCore = null;
+      let deriveGen = 0;
+      let debounceTimer = null;
+      const DEBOUNCE_MS = 400;
+
+      if (!window.isSecureContext || !window.crypto?.subtle) {
+        ctxWarn.hidden = false;
+        return;
+      }
+
+      form.addEventListener("submit", (e) => e.preventDefault());
+
+      function forceLower(el) {
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const v = el.value.toLowerCase();
+        if (el.value !== v) {
+          el.value = v;
+          el.setSelectionRange(start, end);
+        }
+      }
+
+      function scheduleDerive() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          runDerive();
+        }, DEBOUNCE_MS);
+      }
+
+      function scheduleDeriveImmediate() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = null;
+        runDerive();
+      }
+
+      siteEl.addEventListener("input", () => {
+        forceLower(siteEl);
+        scheduleDerive();
+      });
+      accountEl.addEventListener("input", () => {
+        forceLower(accountEl);
+        scheduleDerive();
+      });
+      masterEl.addEventListener("input", scheduleDerive);
+      specialEl.addEventListener("change", scheduleDeriveImmediate);
+
+      function syncLenDisplay() {
+        lenDisplay.textContent = lengthEl.value;
+      }
+
+      lengthEl.addEventListener("input", () => {
+        syncLenDisplay();
+        if (lastFull32) {
+          const n = parseInt(lengthEl.value, 10);
+          renderPassword(lastFull32, n);
+          if (lastTraceCore) {
+            traceOut.textContent = lastTraceCore + traceSliderSuffix(n);
+          }
+        }
+      });
+
+      async function sha256Bytes(text) {
+        const data = new TextEncoder().encode(text);
+        const buf = await crypto.subtle.digest("SHA-256", data);
+        return new Uint8Array(buf);
+      }
+
+      function saltInputFor(site, account, useSpecial) {
+        const mode = useSpecial ? "sym" : "plain";
+        return `${ALGO_VERSION}|${site}|${account}|${mode}`;
+      }
+
+      function bytesToHex(bytes) {
+        return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+      }
+
+      async function deriveKey(masterPassword, site, account, useSpecial) {
+        const saltInput = saltInputFor(site, account, useSpecial);
+        const salt = await sha256Bytes(saltInput);
+        const keyMaterial = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(masterPassword),
+          "PBKDF2",
+          false,
+          ["deriveBits"]
+        );
+        const bits = await crypto.subtle.deriveBits(
+          {
+            name: "PBKDF2",
+            salt,
+            iterations: PBKDF2_ITERATIONS,
+            hash: "SHA-256",
+          },
+          keyMaterial,
+          256
+        );
+        return {
+          keyBytes: new Uint8Array(bits),
+          saltInput,
+          saltBytes: salt,
+        };
+      }
+
+      const POOL_LABELS = ["UPPER", "LOWER", "DIGIT", "SPECIAL"];
+
+      function buildPassword32Detailed(B, useSpecial) {
+        const lines = [];
+        const chars = new Array(DISPLAY_LEN);
+        let bi = 0;
+
+        function next() {
+          const byteIndex = bi % 32;
+          const v = B[byteIndex];
+          bi++;
+          return { v, byteIndex };
+        }
+
+        lines.push("--- mapping: next() reads B[bi mod 32], bi starts at 0 ---");
+        lines.push(
+          "B[i] dec: " + [...B].map((b, i) => `[${i}]=${b}`).join(" ")
+        );
+        lines.push("");
+
+        if (useSpecial) {
+          lines.push("mode sym: Fisher–Yates on poolIds [0,1,2,3] → UPPER,LOWER,DIGIT,SPECIAL");
+          const poolIds = [0, 1, 2, 3];
+          for (let i = 3; i > 0; i--) {
+            const { v, byteIndex } = next();
+            const j = v % (i + 1);
+            lines.push(
+              `shuffle i=${i}: B[${byteIndex}]=${v} → j=${v}%${i + 1}=${j} → swap poolIds[${i}] ↔ poolIds[${j}]`
+            );
+            const t = poolIds[i];
+            poolIds[i] = poolIds[j];
+            poolIds[j] = t;
+            lines.push(`  poolIds now [${poolIds.join(",")}]`);
+          }
+          const pools = [UPPER, LOWER, DIGIT, SPECIAL];
+          lines.push("positions 0..3 (character pools):");
+          for (let i = 0; i < 4; i++) {
+            const { v, byteIndex } = next();
+            const pool = pools[poolIds[i]];
+            const m = v % pool.length;
+            chars[i] = pool[m];
+            lines.push(
+              `  pos ${i}: pool=${POOL_LABELS[poolIds[i]]}, B[${byteIndex}]=${v} → ${v}%${pool.length}=${m} → '${chars[i]}'`
+            );
+          }
+          lines.push("positions 4..31 (FULL_sym, len " + FULL_SYM.length + "):");
+          for (let pos = 4; pos < DISPLAY_LEN; pos++) {
+            const { v, byteIndex } = next();
+            const m = v % FULL_SYM.length;
+            chars[pos] = FULL_SYM[m];
+            lines.push(
+              `  pos ${pos}: B[${byteIndex}]=${v} → ${v}%${FULL_SYM.length}=${m} → '${chars[pos]}'`
+            );
+          }
+        } else {
+          lines.push("mode plain: Fisher–Yates on poolIds [0,1,2] → UPPER,LOWER,DIGIT");
+          const poolIds = [0, 1, 2];
+          for (let i = 2; i > 0; i--) {
+            const { v, byteIndex } = next();
+            const j = v % (i + 1);
+            lines.push(
+              `shuffle i=${i}: B[${byteIndex}]=${v} → j=${v}%${i + 1}=${j} → swap poolIds[${i}] ↔ poolIds[${j}]`
+            );
+            const t = poolIds[i];
+            poolIds[i] = poolIds[j];
+            poolIds[j] = t;
+            lines.push(`  poolIds now [${poolIds.join(",")}]`);
+          }
+          const pools = [UPPER, LOWER, DIGIT];
+          lines.push("positions 0..2 (character pools):");
+          for (let i = 0; i < 3; i++) {
+            const { v, byteIndex } = next();
+            const pool = pools[poolIds[i]];
+            const m = v % pool.length;
+            chars[i] = pool[m];
+            lines.push(
+              `  pos ${i}: pool=${POOL_LABELS[poolIds[i]]}, B[${byteIndex}]=${v} → ${v}%${pool.length}=${m} → '${chars[i]}'`
+            );
+          }
+          lines.push("positions 3..31 (FULL_plain, len " + FULL_PLAIN.length + "):");
+          for (let pos = 3; pos < DISPLAY_LEN; pos++) {
+            const { v, byteIndex } = next();
+            const m = v % FULL_PLAIN.length;
+            chars[pos] = FULL_PLAIN[m];
+            lines.push(
+              `  pos ${pos}: B[${byteIndex}]=${v} → ${v}%${FULL_PLAIN.length}=${m} → '${chars[pos]}'`
+            );
+          }
+        }
+
+        const password = chars.join("");
+        lines.push("");
+        lines.push("final bi (total next() calls): " + bi);
+        lines.push("password (32 chars): " + password);
+        return { password, traceText: lines.join("\n") };
+      }
+
+      function renderPassword(full32, n) {
+        outEl.textContent = "";
+        outEl.classList.remove("empty");
+        const strong = document.createElement("span");
+        strong.textContent = full32.slice(0, n);
+        const fade = document.createElement("span");
+        fade.className = "pw-fade";
+        fade.textContent = full32.slice(n);
+        outEl.appendChild(strong);
+        outEl.appendChild(fade);
+      }
+
+      function traceSliderSuffix(n) {
+        return (
+          "\n\n--- length slider ---\n" +
+          "copy uses first " +
+          n +
+          " characters (darker segment above)."
+        );
+      }
+
+      function clearOutput() {
+        lastFull32 = null;
+        lastTraceCore = null;
+        outEl.textContent = "—";
+        outEl.classList.add("empty");
+        btnCopy.disabled = true;
+        traceBlock.hidden = true;
+        traceOut.textContent = "";
+      }
+
+      async function runDerive() {
+        const id = ++deriveGen;
+        const site = siteEl.value.trim().toLowerCase();
+        const account = accountEl.value.trim().toLowerCase();
+        const master = masterEl.value;
+
+        if (!site || !account || !master) {
+          if (id !== deriveGen) return;
+          clearOutput();
+          return;
+        }
+
+        outEl.textContent = "…";
+        outEl.classList.add("empty");
+        btnCopy.disabled = true;
+        lastFull32 = null;
+        traceBlock.hidden = true;
+        traceOut.textContent = "";
+
+        try {
+          const useSpecial = specialEl.checked;
+          const { keyBytes, saltInput, saltBytes } = await deriveKey(
+            master,
+            site,
+            account,
+            useSpecial
+          );
+          if (id !== deriveGen) return;
+          const n = parseInt(lengthEl.value, 10);
+          const { password, traceText } = buildPassword32Detailed(
+            keyBytes,
+            useSpecial
+          );
+          lastFull32 = password;
+          renderPassword(lastFull32, n);
+
+          const masterByteLen = new TextEncoder().encode(master).length;
+          const hdr = [];
+          hdr.push("=== ezpw derivation trace ===");
+          hdr.push("mode: " + (useSpecial ? "sym" : "plain"));
+          hdr.push("site (normalized): " + site);
+          hdr.push("account (normalized): " + account);
+          hdr.push(
+            "master UTF-8 byte length: " + masterByteLen + " (value not shown)"
+          );
+          hdr.push("");
+          hdr.push("--- salt string (UTF-8) ---");
+          hdr.push(saltInput);
+          hdr.push("");
+          hdr.push("--- SHA-256(salt string) = PBKDF2 salt (hex, 32 bytes) ---");
+          hdr.push(bytesToHex(saltBytes));
+          hdr.push("");
+          hdr.push("--- PBKDF2-HMAC-SHA256 ---");
+          hdr.push("passphrase encoding: UTF-8");
+          hdr.push("iterations: " + PBKDF2_ITERATIONS);
+          hdr.push("dkLen: 256 bits");
+          hdr.push("prf/hash: HMAC-SHA256");
+          hdr.push("");
+          hdr.push("--- B = derived key (hex, 32 bytes) ---");
+          hdr.push(bytesToHex(keyBytes));
+          hdr.push("");
+
+          lastTraceCore = hdr.join("\n") + traceText;
+          traceOut.textContent = lastTraceCore + traceSliderSuffix(n);
+          traceBlock.hidden = false;
+          btnCopy.disabled = false;
+        } catch (err) {
+          if (id !== deriveGen) return;
+          console.error(err);
+          outEl.textContent = "error";
+          outEl.classList.add("empty");
+          btnCopy.disabled = true;
+          lastFull32 = null;
+          lastTraceCore = null;
+          traceBlock.hidden = true;
+        }
+      }
+
+      btnCopy.addEventListener("click", async () => {
+        if (!lastFull32) return;
+        const n = parseInt(lengthEl.value, 10);
+        const text = lastFull32.slice(0, n);
+        try {
+          await navigator.clipboard.writeText(text);
+          const prev = btnCopy.textContent;
+          btnCopy.textContent = "copied";
+          setTimeout(() => {
+            btnCopy.textContent = prev;
+          }, 1200);
+        } catch {
+          btnCopy.textContent = "failed";
+          setTimeout(() => {
+            btnCopy.textContent = "copy";
+          }, 1200);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

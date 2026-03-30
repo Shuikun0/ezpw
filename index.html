@@ -152,6 +152,41 @@
 
     .derived .pw-fade {
       opacity: 0.32;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .uname-list {
+      margin: 0.35rem 0 0.5rem;
+      padding-left: 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+    }
+
+    .uname-list li {
+      margin-bottom: 0.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.25rem 0.5rem;
+    }
+
+    .uname-list .uname-name {
+      font-family: var(--mono);
+      min-width: 7ch;
+    }
+
+    .uname-list .uname-sep {
+      color: var(--muted);
+      font-size: 0.85em;
+      user-select: none;
+    }
+
+    .uname-list .uname-pw {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.03em;
     }
 
     .btn-copy {
@@ -240,6 +275,9 @@
       <div class="field">
         <label for="account">account</label>
         <input id="account" type="text" autocapitalize="off" spellcheck="false" />
+        <p class="hint" id="accountHint">
+          Leave empty: 10 suggested usernames (4 letters + 4 digits) plus the password each would get if you set account to that name (same length prefix as slider).
+        </p>
       </div>
       <div class="field">
         <label class="check" for="special">
@@ -250,8 +288,8 @@
       <div class="field">
         <label for="length">length (prefix)</label>
         <div class="row">
-          <input id="length" type="range" min="4" max="32" value="10" />
-          <span class="len-value" id="lenDisplay">10</span>
+          <input id="length" type="range" min="4" max="32" value="15" />
+          <span class="len-value" id="lenDisplay">15</span>
         </div>
       </div>
     </form>
@@ -272,6 +310,13 @@
       <summary>derivation path</summary>
       <pre id="specBody">Let M = UTF-8(master), site′ = trim(site).toLowerCase(), account′ = trim(account).toLowerCase().
 Let mode be “plain” (checkbox off) or “sym” (checkbox on).
+
+If account is empty (after trim): 10 username suggestions + preview passwords.
+  Salt string (UTF-8) for the 10 usernames only:  ezpas-v6-uname|site′|plain (always plain; Symbols checkbox does not affect the usernames).
+  PBKDF2 → B. For i = 0..9: H ← SHA-256(B ‖ UInt32BE(i)); username[i] = 4×LOWER + 4×DIGIT (8 chars).
+  For each username u: preview password uses account′ = u (same rules as below, salt ezpas-v6|site′|u|mode — mode follows Symbols).
+
+If account is non-empty: single password as follows.
 
 Salt string (UTF-8):  ezpas-v6|site′|account′|mode
   mode = plain  → no special characters in any pool
@@ -301,7 +346,7 @@ If mode = sym:
   2) pools ← [UPPER, LOWER, DIGIT, SPECIAL]. For i = 0..3: chars[i] ← pools[poolIds[i]][next() mod |pool|].
   3) For q = 4..31: chars[q] ← FULL_sym[next() mod 76].
 
-Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy.</pre>
+Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy; default N = 15.</pre>
     </details>
   </div>
 
@@ -333,6 +378,8 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
       const traceOut = $("traceOut");
 
       let lastFull32 = null;
+      /** @type {{ name: string, password32: string }[] | null} */
+      let lastUsernameRows = null;
       let lastTraceCore = null;
       let deriveGen = 0;
       let debounceTimer = null;
@@ -386,9 +433,14 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
 
       lengthEl.addEventListener("input", () => {
         syncLenDisplay();
+        const n = parseInt(lengthEl.value, 10);
         if (lastFull32) {
-          const n = parseInt(lengthEl.value, 10);
           renderPassword(lastFull32, n);
+          if (lastTraceCore) {
+            traceOut.textContent = lastTraceCore + traceSliderSuffix(n);
+          }
+        } else if (lastUsernameRows && lastUsernameRows.length) {
+          renderUsernameRows(lastUsernameRows, n);
           if (lastTraceCore) {
             traceOut.textContent = lastTraceCore + traceSliderSuffix(n);
           }
@@ -401,17 +453,38 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
         return new Uint8Array(buf);
       }
 
+      async function sha256Raw(bytes) {
+        const buf = await crypto.subtle.digest("SHA-256", bytes);
+        return new Uint8Array(buf);
+      }
+
+      function u32be(n) {
+        const a = new Uint8Array(4);
+        new DataView(a.buffer).setUint32(0, n, false);
+        return a;
+      }
+
+      function concatBytes(a, b) {
+        const out = new Uint8Array(a.length + b.length);
+        out.set(a, 0);
+        out.set(b, a.length);
+        return out;
+      }
+
       function saltInputFor(site, account, useSpecial) {
         const mode = useSpecial ? "sym" : "plain";
         return `${ALGO_VERSION}|${site}|${account}|${mode}`;
+      }
+
+      function saltInputForUsernames(site) {
+        return `${ALGO_VERSION}-uname|${site}|plain`;
       }
 
       function bytesToHex(bytes) {
         return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
       }
 
-      async function deriveKey(masterPassword, site, account, useSpecial) {
-        const saltInput = saltInputFor(site, account, useSpecial);
+      async function deriveKeyFromSalt(masterPassword, saltInput) {
         const salt = await sha256Bytes(saltInput);
         const keyMaterial = await crypto.subtle.importKey(
           "raw",
@@ -437,7 +510,54 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
         };
       }
 
+      async function deriveKey(masterPassword, site, account, useSpecial) {
+        const saltInput = saltInputFor(site, account, useSpecial);
+        return deriveKeyFromSalt(masterPassword, saltInput);
+      }
+
       const POOL_LABELS = ["UPPER", "LOWER", "DIGIT", "SPECIAL"];
+
+      function buildPassword32Only(B, useSpecial) {
+        const chars = new Array(DISPLAY_LEN);
+        let bi = 0;
+        function next() {
+          return B[bi++ % 32];
+        }
+        if (useSpecial) {
+          const poolIds = [0, 1, 2, 3];
+          for (let i = 3; i > 0; i--) {
+            const j = next() % (i + 1);
+            const t = poolIds[i];
+            poolIds[i] = poolIds[j];
+            poolIds[j] = t;
+          }
+          const pools = [UPPER, LOWER, DIGIT, SPECIAL];
+          for (let i = 0; i < 4; i++) {
+            const pool = pools[poolIds[i]];
+            chars[i] = pool[next() % pool.length];
+          }
+          for (let pos = 4; pos < DISPLAY_LEN; pos++) {
+            chars[pos] = FULL_SYM[next() % FULL_SYM.length];
+          }
+        } else {
+          const poolIds = [0, 1, 2];
+          for (let i = 2; i > 0; i--) {
+            const j = next() % (i + 1);
+            const t = poolIds[i];
+            poolIds[i] = poolIds[j];
+            poolIds[j] = t;
+          }
+          const pools = [UPPER, LOWER, DIGIT];
+          for (let i = 0; i < 3; i++) {
+            const pool = pools[poolIds[i]];
+            chars[i] = pool[next() % pool.length];
+          }
+          for (let pos = 3; pos < DISPLAY_LEN; pos++) {
+            chars[pos] = FULL_PLAIN[next() % FULL_PLAIN.length];
+          }
+        }
+        return chars.join("");
+      }
 
       function buildPassword32Detailed(B, useSpecial) {
         const lines = [];
@@ -534,6 +654,31 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
         return { password, traceText: lines.join("\n") };
       }
 
+      async function buildUsernames10Detailed(B) {
+        const names = [];
+        const lines = [];
+        lines.push("--- username suggestions (empty account): 4×LOWER + 4×DIGIT ---");
+        lines.push("H[i] = SHA-256(B ‖ UInt32BE(i)), i = 0..9");
+        lines.push("");
+        for (let i = 0; i < 10; i++) {
+          const H = await sha256Raw(concatBytes(B, u32be(i)));
+          let s = "";
+          for (let p = 0; p < 4; p++) {
+            s += LOWER[H[p] % 26];
+          }
+          for (let p = 0; p < 4; p++) {
+            s += DIGIT[H[4 + p] % 10];
+          }
+          names.push(s);
+          lines.push(
+            `i=${i}: H[0..7]=${[...H.slice(0, 8)]
+              .map((b) => b.toString(10).padStart(3, " "))
+              .join(" ")} → ${s}`
+          );
+        }
+        return { names, traceText: lines.join("\n") };
+      }
+
       function renderPassword(full32, n) {
         outEl.textContent = "";
         outEl.classList.remove("empty");
@@ -544,6 +689,36 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
         fade.textContent = full32.slice(n);
         outEl.appendChild(strong);
         outEl.appendChild(fade);
+      }
+
+      function renderUsernameRows(rows, n) {
+        outEl.textContent = "";
+        outEl.classList.remove("empty");
+        const ol = document.createElement("ol");
+        ol.className = "uname-list";
+        rows.forEach((row) => {
+          const li = document.createElement("li");
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "uname-name";
+          nameSpan.textContent = row.name;
+          const sep = document.createElement("span");
+          sep.className = "uname-sep";
+          sep.textContent = "→";
+          const pwWrap = document.createElement("span");
+          pwWrap.className = "uname-pw";
+          const strong = document.createElement("span");
+          strong.textContent = row.password32.slice(0, n);
+          const fade = document.createElement("span");
+          fade.className = "pw-fade";
+          fade.textContent = row.password32.slice(n);
+          pwWrap.appendChild(strong);
+          pwWrap.appendChild(fade);
+          li.appendChild(nameSpan);
+          li.appendChild(sep);
+          li.appendChild(pwWrap);
+          ol.appendChild(li);
+        });
+        outEl.appendChild(ol);
       }
 
       function traceSliderSuffix(n) {
@@ -557,6 +732,7 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
 
       function clearOutput() {
         lastFull32 = null;
+        lastUsernameRows = null;
         lastTraceCore = null;
         outEl.textContent = "—";
         outEl.classList.add("empty");
@@ -571,21 +747,105 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
         const account = accountEl.value.trim().toLowerCase();
         const master = masterEl.value;
 
-        if (!site || !account || !master) {
+        if (!site || !master) {
           if (id !== deriveGen) return;
           clearOutput();
           return;
         }
 
+        const accountEmpty = account.length === 0;
+
         outEl.textContent = "…";
         outEl.classList.add("empty");
         btnCopy.disabled = true;
         lastFull32 = null;
+        lastUsernameRows = null;
         traceBlock.hidden = true;
         traceOut.textContent = "";
 
         try {
           const useSpecial = specialEl.checked;
+
+          if (accountEmpty) {
+            const saltInput = saltInputForUsernames(site);
+            const { keyBytes, saltBytes } = await deriveKeyFromSalt(
+              master,
+              saltInput
+            );
+            if (id !== deriveGen) return;
+            const { names, traceText } = await buildUsernames10Detailed(
+              keyBytes
+            );
+            const n = parseInt(lengthEl.value, 10);
+            const rows = [];
+            const pwTrace = [];
+            pwTrace.push("");
+            pwTrace.push(
+              "--- password for each suggestion (account′ = that username; same salt shape as manual account) ---"
+            );
+            for (let i = 0; i < names.length; i++) {
+              const uname = names[i];
+              const { keyBytes: pwKey, saltInput: pwSalt } = await deriveKey(
+                master,
+                site,
+                uname,
+                useSpecial
+              );
+              if (id !== deriveGen) return;
+              const pw = buildPassword32Only(pwKey, useSpecial);
+              rows.push({ name: uname, password32: pw });
+              pwTrace.push(
+                (i + 1) +
+                  ". account′=" +
+                  uname +
+                  "\n    salt (UTF-8): " +
+                  pwSalt +
+                  "\n    password (32 chars): " +
+                  pw
+              );
+            }
+            lastUsernameRows = rows;
+            renderUsernameRows(rows, n);
+
+            const masterByteLen = new TextEncoder().encode(master).length;
+            const hdr = [];
+            hdr.push("=== ezpw derivation trace (username suggestions) ===");
+            hdr.push(
+              "password mapping (Symbols): " + (useSpecial ? "sym" : "plain")
+            );
+            hdr.push(
+              "username-list salt: fixed …|plain (Symbols does not change the 10 usernames)"
+            );
+            hdr.push("site (normalized): " + site);
+            hdr.push("account: (empty — 10 username suggestions + preview passwords)");
+            hdr.push(
+              "master UTF-8 byte length: " + masterByteLen + " (value not shown)"
+            );
+            hdr.push("");
+            hdr.push("--- salt string (UTF-8) ---");
+            hdr.push(saltInput);
+            hdr.push("");
+            hdr.push("--- SHA-256(salt string) = PBKDF2 salt (hex, 32 bytes) ---");
+            hdr.push(bytesToHex(saltBytes));
+            hdr.push("");
+            hdr.push("--- PBKDF2-HMAC-SHA256 ---");
+            hdr.push("passphrase encoding: UTF-8");
+            hdr.push("iterations: " + PBKDF2_ITERATIONS);
+            hdr.push("dkLen: 256 bits");
+            hdr.push("prf/hash: HMAC-SHA256");
+            hdr.push("");
+            hdr.push("--- B = derived key (hex, 32 bytes) ---");
+            hdr.push(bytesToHex(keyBytes));
+            hdr.push("");
+
+            lastTraceCore =
+              hdr.join("\n") + traceText + pwTrace.join("\n");
+            traceOut.textContent = lastTraceCore + traceSliderSuffix(n);
+            traceBlock.hidden = false;
+            btnCopy.disabled = false;
+            return;
+          }
+
           const { keyBytes, saltInput, saltBytes } = await deriveKey(
             master,
             site,
@@ -638,15 +898,28 @@ Output = chars[0..31] joined. Slider N (4–32) selects the prefix used for copy
           outEl.classList.add("empty");
           btnCopy.disabled = true;
           lastFull32 = null;
+          lastUsernameRows = null;
           lastTraceCore = null;
           traceBlock.hidden = true;
         }
       }
 
       btnCopy.addEventListener("click", async () => {
-        if (!lastFull32) return;
-        const n = parseInt(lengthEl.value, 10);
-        const text = lastFull32.slice(0, n);
+        let text = "";
+        if (lastUsernameRows && lastUsernameRows.length) {
+          const n = parseInt(lengthEl.value, 10);
+          text = lastUsernameRows
+            .map(
+              (r) =>
+                r.name + "\t" + r.password32.slice(0, n)
+            )
+            .join("\n");
+        } else if (lastFull32) {
+          const n = parseInt(lengthEl.value, 10);
+          text = lastFull32.slice(0, n);
+        } else {
+          return;
+        }
         try {
           await navigator.clipboard.writeText(text);
           const prev = btnCopy.textContent;
